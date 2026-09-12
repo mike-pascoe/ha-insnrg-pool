@@ -1,0 +1,14 @@
+{
+  "domain": "insnrg_pool",
+  "name": "Insnrg Pool",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/mike-pascoe/ha-insnrg-pool",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/mike-pascoe/ha-insnrg-pool/issues",
+  "requirements": [
+    "pycognito==2024.5.1"
+  ],
+  "version": "1.0.0"
+}

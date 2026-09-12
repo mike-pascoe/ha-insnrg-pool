@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Insnrg Pool",
+        "description": "Sign in with your insnrgapp.com account. Voice Control must be enabled in the Insnrg app under Connected Systems before the pool can be controlled.",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Insnrg Pool",
+        "description": "Your Insnrg credentials are no longer valid. Enter them again.",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the Insnrg service.",
+      "invalid_auth": "Invalid email address or password.",
+      "voice_control_disabled": "Insnrg returned no devices. Open the Insnrg app, go to Connected Systems and enable Voice Control, then try again.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This pool system is already configured.",
+      "reauth_successful": "Reauthentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Insnrg Pool options",
+        "data": {
+          "scan_interval_minutes": "Polling interval (minutes)"
+        },
+        "data_description": {
+          "scan_interval_minutes": "How often to poll the Insnrg cloud for device state. Maintenance counters poll every 30 minutes regardless."
+        }
+      }
+    }
+  }
+}
