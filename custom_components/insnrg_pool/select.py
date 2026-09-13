@@ -7,9 +7,19 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, TYPE_CHLORINATOR, TYPE_LIGHT, TYPE_PUMP_SPEED, TYPE_SWITCH
+from .app_api import InsnrgAppClient
+from .const import (
+    DOMAIN,
+    RELAY_MODE_TO_NAME,
+    RELAY_NAME_TO_MODE,
+    TYPE_CHLORINATOR,
+    TYPE_LIGHT,
+    TYPE_PUMP_SPEED,
+    TYPE_SWITCH,
+    relay_voice_device_id,
+)
 from .coordinator import InsnrgCoordinator
-from .entity import InsnrgEntity
+from .entity import InsnrgEntity, InsnrgRelayEntity
 
 MODE_OPTIONS = ["ON", "OFF", "TIMER"]
 
@@ -20,7 +30,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up pump speed, chlorinator level and timer-mode selects."""
-    coordinator = hass.data[DOMAIN][entry.entry_id].control
+    runtime = hass.data[DOMAIN][entry.entry_id]
+    coordinator = runtime.control
     entities: list[SelectEntity] = []
 
     for device_id, device in coordinator.data.items():
@@ -33,6 +44,16 @@ async def async_setup_entry(
             # Devices that support TIMER need a three-state control; the plain
             # switch can only express on/off.
             entities.append(InsnrgTimerModeSelect(coordinator, device_id))
+
+    app_data = runtime.app.data or {}
+    names = app_data.get("_custom_names") or {}
+    entities.extend(
+        InsnrgRelayModeSelect(
+            runtime.app, outlet, InsnrgAppClient.relay_name(names, outlet)
+        )
+        for outlet in app_data.get("_relays") or {}
+        if relay_voice_device_id(outlet) not in coordinator.data
+    )
 
     async_add_entities(entities)
 
@@ -82,4 +103,28 @@ class InsnrgTimerModeSelect(InsnrgEntity, SelectEntity):
         """Switch between manual on, manual off and timer control."""
         await self.coordinator.async_write_then_refresh(
             self.coordinator.client.async_set_switch(self._device_id, option)
+        )
+
+
+class InsnrgRelayModeSelect(InsnrgRelayEntity, SelectEntity):
+    """Three-state mode for a relay hub outlet reached through the app API."""
+
+    _attr_options = MODE_OPTIONS
+
+    def __init__(self, coordinator, outlet: int, name: str) -> None:
+        super().__init__(coordinator, outlet, f"{name} mode", f"relay_{outlet}_mode")
+
+    @property
+    def current_option(self) -> str | None:
+        """Return ON, OFF or TIMER."""
+        mode = self.mode
+        return None if mode is None else RELAY_MODE_TO_NAME.get(mode)
+
+    async def async_select_option(self, option: str) -> None:
+        """Switch between manual on, manual off and timer control."""
+        value = RELAY_NAME_TO_MODE.get(option)
+        if value is None:
+            return
+        await self.coordinator.async_write_then_refresh(
+            self.coordinator.client.async_set_relay_mode(self._outlet, value)
         )

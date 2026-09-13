@@ -21,6 +21,9 @@ APP_SCAN_INTERVAL_MINUTES: Final = 30
 # round-trip the command to the pool controller before `getall` reflects it.
 WRITE_SETTLE_SECONDS: Final = 3
 
+# Relay hub writes echo the previous register value briefly before settling.
+RELAY_SETTLE_SECONDS: Final = 8
+
 # Alexa-style namespaces the `getall` payload reports state under.
 NS_POWER: Final = "Alexa.PowerController"
 NS_TOGGLE: Final = "Alexa.ToggleController"
@@ -50,3 +53,45 @@ CHEMISTRY_BOUNDS: Final = {
     "PH": (7.0, 8.0, 0.1),
     "ORP": (550.0, 750.0, 10.0),
 }
+
+# --- Relay hub outlets driven through the app API -------------------------
+# Outlets 3-6 on the relay hub are MODE_CHANNEL_EXP_1..4, at consecutive
+# registers. Most appear in the control API as OUTLET_HUB_n, but an outlet the
+# user has not surfaced in the app's appliance list is missing from it
+# entirely, and the app API is then the only way to reach it.
+RELAY_CMD_URL: Final = "https://95osjk2ux7.execute-api.us-east-2.amazonaws.com/prod/send"
+RELAY_VALUES_URL: Final = "https://q5nhxjkqu4.execute-api.us-east-2.amazonaws.com/prod/items"
+RELAY_DEVICE_TYPE: Final = "expansion"
+RELAY_FIRST_OUTLET: Final = 3
+RELAY_LAST_OUTLET: Final = 6
+RELAY_FIRST_REG: Final = 65040
+# The app names an outlet under this id offset in the system's customNames:
+# outlets 3-6 are ids 505-508.
+RELAY_NAME_ID_BASE: Final = 502
+
+# Register encoding. OFF and TIMER are confirmed against live hardware; ON is
+# the remaining value in the sequence and is not separately verified.
+RELAY_MODE_OFF: Final = 0
+RELAY_MODE_ON: Final = 1
+RELAY_MODE_TIMER: Final = 2
+RELAY_MODE_TO_NAME: Final = {
+    RELAY_MODE_OFF: "OFF",
+    RELAY_MODE_ON: "ON",
+    RELAY_MODE_TIMER: "TIMER",
+}
+RELAY_NAME_TO_MODE: Final = {v: k for k, v in RELAY_MODE_TO_NAME.items()}
+
+
+def relay_reg(outlet: int) -> int:
+    """Return the MODE_CHANNEL_EXP register backing a relay hub outlet."""
+    return RELAY_FIRST_REG + (outlet - RELAY_FIRST_OUTLET)
+
+
+def relay_cmd(outlet: int) -> str:
+    """Return the command name for a relay hub outlet."""
+    return "MODE_CHANNEL_EXP_%d" % (outlet - RELAY_FIRST_OUTLET + 1)
+
+
+def relay_voice_device_id(outlet: int) -> str:
+    """Return the control API device id this outlet would use if exposed."""
+    return "OUTLET_HUB_%d" % outlet

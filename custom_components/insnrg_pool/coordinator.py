@@ -19,7 +19,7 @@ from .api import (
     InsnrgVoiceControlDisabled,
 )
 from .app_api import InsnrgAppClient
-from .const import DOMAIN, WRITE_SETTLE_SECONDS
+from .const import DOMAIN, RELAY_SETTLE_SECONDS, WRITE_SETTLE_SECONDS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,9 +90,21 @@ class InsnrgAppCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            return await self.client.async_get_dashboard()
+            data = await self.client.async_get_dashboard()
+            data["_relays"] = await self.client.async_get_relay_modes()
+            return data
         except InsnrgError as err:
             raise UpdateFailed(str(err)) from err
+
+    async def async_write_then_refresh(self, coro) -> None:
+        """Await a relay write, let the controller apply it, then refresh.
+
+        The register echoes the old value for a few seconds after a write, so
+        this waits longer than the control API path does.
+        """
+        await coro
+        await asyncio.sleep(RELAY_SETTLE_SECONDS)
+        await self.async_request_refresh()
 
     async def async_config_entry_first_refresh_soft(self) -> None:
         """First refresh that logs rather than aborting setup on failure."""

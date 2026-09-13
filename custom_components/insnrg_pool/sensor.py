@@ -22,12 +22,10 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN
 from .coordinator import InsnrgAppCoordinator
-from .entity import InsnrgEntity
-from homeassistant.helpers.device_registry import DeviceInfo
+from .entity import InsnrgAppEntity, InsnrgEntity
 
 PH_ORP_SENSORS = {
     "PH": ("pH", None, None),
@@ -178,10 +176,9 @@ class InsnrgWaterTempSensor(InsnrgEntity, SensorEntity):
         return None if value is None else float(value)
 
 
-class InsnrgAppSensor(CoordinatorEntity[InsnrgAppCoordinator], SensorEntity):
+class InsnrgAppSensor(InsnrgAppEntity, SensorEntity):
     """A maintenance counter from the app API dashboard."""
 
-    _attr_has_entity_name = True
     entity_description: InsnrgAppSensorDescription
 
     def __init__(
@@ -189,18 +186,8 @@ class InsnrgAppSensor(CoordinatorEntity[InsnrgAppCoordinator], SensorEntity):
         coordinator: InsnrgAppCoordinator,
         description: InsnrgAppSensorDescription,
     ) -> None:
-        super().__init__(coordinator)
+        super().__init__(coordinator, description.key)
         self.entity_description = description
-        system_id = coordinator.client.system_id
-        self._attr_unique_id = f"{system_id}_{description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, str(system_id))},
-            manufacturer=MANUFACTURER,
-            name="Insnrg Pool",
-            model="inTouch",
-            serial_number=system_id,
-            configuration_url="https://www.insnrgapp.com",
-        )
 
     @property
     def native_value(self) -> Any:

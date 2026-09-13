@@ -19,6 +19,16 @@ from aiohttp import ClientError, ClientSession
 from homeassistant.core import HomeAssistant
 
 from .api import InsnrgAuthError, InsnrgConnectionError
+from .const import (
+    RELAY_CMD_URL,
+    RELAY_DEVICE_TYPE,
+    RELAY_FIRST_OUTLET,
+    RELAY_LAST_OUTLET,
+    RELAY_NAME_ID_BASE,
+    RELAY_VALUES_URL,
+    relay_cmd,
+    relay_reg,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -176,6 +186,18 @@ class InsnrgAppClient:
         if isinstance(wifi, (int, float)):
             result["wifiSignalStrength"] = {"value": _wifi_dbm(wifi), "name": "WiFi signal"}
 
+        # The app stores user-chosen appliance names here; they are the only
+        # source of a friendly name for an outlet the control API omits.
+        raw_data = system.get("data")
+        if isinstance(raw_data, str) and raw_data:
+            try:
+                names = json.loads(raw_data).get("customNames") or []
+            except json.JSONDecodeError:
+                names = []
+            result["_custom_names"] = {
+                n["id"]: n.get("name") for n in names if isinstance(n, dict) and "id" in n
+            }
+
         live = system.get("liveData")
         if isinstance(live, str) and live:
             try:
@@ -184,6 +206,57 @@ class InsnrgAppClient:
                 _LOGGER.debug("Could not parse liveData")
 
         return result
+
+    async def async_get_relay_modes(self) -> dict[int, int]:
+        """Read the mode of each relay hub outlet, keyed by outlet number."""
+        if self.system_id is None:
+            await self.async_get_system_id()
+        data = await self._async_post(
+            RELAY_VALUES_URL,
+            {
+                "systemId": self.system_id,
+                "index": "getBySystemIdByModbusReg",
+                "fromReg": relay_reg(RELAY_FIRST_OUTLET),
+                "toReg": relay_reg(RELAY_LAST_OUTLET),
+            },
+        )
+        by_reg: dict[int, int] = {}
+        for row in (data or {}).get("data") or []:
+            # Several device types echo the same register; the expansion bus is
+            # the one that reflects the relay hub.
+            if row.get("deviceType") != RELAY_DEVICE_TYPE:
+                continue
+            value = row.get("modbusVal")
+            if isinstance(value, list) and value and isinstance(value[0], int):
+                by_reg[row.get("modbusReg")] = value[0]
+
+        return {
+            outlet: by_reg[relay_reg(outlet)]
+            for outlet in range(RELAY_FIRST_OUTLET, RELAY_LAST_OUTLET + 1)
+            if relay_reg(outlet) in by_reg
+        }
+
+    async def async_set_relay_mode(self, outlet: int, value: int) -> None:
+        """Set a relay hub outlet to OFF, ON or TIMER."""
+        if self.system_id is None:
+            await self.async_get_system_id()
+        await self._async_post(
+            RELAY_CMD_URL,
+            {
+                "systemId": self.system_id,
+                "deviceType": RELAY_DEVICE_TYPE,
+                "payloads": [{"cmd": relay_cmd(outlet), "valArgument": [value]}],
+            },
+        )
+
+    @staticmethod
+    def relay_name(custom_names: dict[int, str], outlet: int) -> str:
+        """Return the user's name for an outlet, or a sensible fallback."""
+        name = (custom_names or {}).get(RELAY_NAME_ID_BASE + outlet)
+        if not name:
+            return f"Relay hub outlet {outlet}"
+        # The app stores these upper-cased; title case reads better in HA.
+        return name.title() if name.isupper() else name
 
 
 def _wifi_dbm(raw: float) -> float:

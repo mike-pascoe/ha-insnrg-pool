@@ -34,6 +34,7 @@ Everything lives under a single device named after your pool system.
 | Entity | Type | Notes |
 | --- | --- | --- |
 | Filter Pump, Spa, Gas Heater, Jet Pump, Ozone, Blower | `switch` | One per appliance on your system |
+| Relay hub outlets missing from the control API | `switch` + `select` | See **Hidden relay hub outlets** below |
 | All Auto | `switch` | Master timer-schedule enable |
 | Timer 1–4 Status / Chlorinator | `switch` | Enable a timer slot, and whether it runs the chlorinator |
 | Lights | `light` | On/off, with the 11 colour programs exposed as **effects** |
@@ -59,6 +60,22 @@ cannot express. Those get an extra `select` entity alongside the switch:
 The `switch` still reports whether the appliance is drawing power right now, and
 carries a `timer_mode` attribute. Use the `select` when you want to hand control
 back to the schedule rather than pin the appliance on or off.
+
+## Hidden relay hub outlets
+
+The control API only lists relay hub outlets that appear in the app's appliance
+list. An outlet that exists and works in the app but is not in that list — a
+heat pump wired to a spare outlet, for instance — is invisible to it.
+
+The integration reaches those through the app API instead, reading
+`MODE_CHANNEL_EXP_1..4` (registers 65040-65043 on the expansion bus) and writing
+them back via the app's own command endpoint. Outlets already covered by the
+control API are skipped, so nothing is duplicated. Names come from the app's
+`customNames`, so renaming an outlet in the app renames the entity here.
+
+These outlets expose a single three-state mode rather than a separate power
+reading, so the `switch` reports on for both ON and TIMER and carries the real
+mode in its `mode` attribute. Use the `select` when the distinction matters.
 
 ## Configuration
 
@@ -94,6 +111,8 @@ sensors, not the controls.
   The values are passed through as-is.
 - pH setpoint bounds are fixed at 7.0–8.0 rather than read from the API, whose
   `valueMax` for pH tracks the current reading instead of a real limit.
+- `ON` for a hidden relay outlet is inferred as register value `1`; `OFF` (0)
+  and `TIMER` (2) are confirmed against live hardware.
 - The thermostats expose a setpoint but no on/off — heating is gated by the Gas Heater
   switch — so they report a single `heat` mode.
 
