@@ -69,8 +69,7 @@ RELAY_FIRST_REG: Final = 65040
 # outlets 3-6 are ids 505-508.
 RELAY_NAME_ID_BASE: Final = 502
 
-# Register encoding. OFF and TIMER are confirmed against live hardware; ON is
-# the remaining value in the sequence and is not separately verified.
+# Register encoding, all three confirmed against live hardware.
 RELAY_MODE_OFF: Final = 0
 RELAY_MODE_ON: Final = 1
 RELAY_MODE_TIMER: Final = 2

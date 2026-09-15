@@ -73,8 +73,8 @@ them back via the app's own command endpoint. Outlets already covered by the
 control API are skipped, so nothing is duplicated. Names come from the app's
 `customNames`, so renaming an outlet in the app renames the entity here.
 
-These outlets expose a single three-state mode rather than a separate power
-reading, so the `switch` reports on for both ON and TIMER and carries the real
+The mode register encodes `0=OFF, 1=ON, 2=TIMER`. These outlets expose that
+single three-state mode rather than a separate power reading, so the `switch` reports on for both ON and TIMER and carries the real
 mode in its `mode` attribute. Use the `select` when the distinction matters.
 
 ## Configuration
@@ -111,8 +111,6 @@ sensors, not the controls.
   The values are passed through as-is.
 - pH setpoint bounds are fixed at 7.0–8.0 rather than read from the API, whose
   `valueMax` for pH tracks the current reading instead of a real limit.
-- `ON` for a hidden relay outlet is inferred as register value `1`; `OFF` (0)
-  and `TIMER` (2) are confirmed against live hardware.
 - The thermostats expose a setpoint but no on/off — heating is gated by the Gas Heater
   switch — so they report a single `heat` mode.
 
