@@ -14,7 +14,7 @@ from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, THERMOSTAT_TARGET_KEYS
+from .const import DOMAIN, THERMOSTAT_TARGET_KEYS, as_float
 from .coordinator import InsnrgCoordinator
 from .entity import InsnrgEntity
 
@@ -59,33 +59,31 @@ class InsnrgThermostat(InsnrgEntity, ClimateEntity):
     @property
     def min_temp(self) -> float:
         """Return the lowest selectable temperature."""
-        return float(self._thermostat.get("valueMin", 10))
+        return as_float(self._thermostat.get("valueMin"), 10.0)
 
     @property
     def max_temp(self) -> float:
         """Return the highest selectable temperature."""
-        return float(self._thermostat.get("valueMax", 40))
+        return as_float(self._thermostat.get("valueMax"), 40.0)
 
     @property
     def current_temperature(self) -> float | None:
         """Return the measured water temperature."""
-        value = (self.device.get("temperature") or {}).get("value")
-        return None if value is None else float(value)
+        return as_float((self.device.get("temperature") or {}).get("value"))
 
     @property
     def target_temperature(self) -> float | None:
         """Return the heat setpoint."""
-        value = self._thermostat.get(self._target_key)
-        return None if value is None else float(value)
+        return as_float(self._thermostat.get(self._target_key))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set a new heat setpoint."""
-        temperature = kwargs.get(ATTR_TEMPERATURE)
+        temperature = as_float(kwargs.get(ATTR_TEMPERATURE))
         if temperature is None:
             return
         await self.coordinator.async_write_then_refresh(
             self.coordinator.client.async_set_temperature(
-                self._device_id, float(temperature)
+                self._device_id, temperature
             )
         )
 

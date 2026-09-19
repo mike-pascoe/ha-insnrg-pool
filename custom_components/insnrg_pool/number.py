@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CHEMISTRY_BOUNDS, CHEMISTRY_DEVICES, DOMAIN
+from .const import CHEMISTRY_BOUNDS, CHEMISTRY_DEVICES, DOMAIN, as_float
 from .coordinator import InsnrgCoordinator
 from .entity import InsnrgEntity
 
@@ -49,8 +49,7 @@ class InsnrgSetpoint(InsnrgEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         """Return the current setpoint."""
-        value = (self.device.get("thermostat") or {}).get("setPoint")
-        return None if value is None else float(value)
+        return as_float((self.device.get("thermostat") or {}).get("setPoint"))
 
     async def async_set_native_value(self, value: float) -> None:
         """Write a new setpoint."""

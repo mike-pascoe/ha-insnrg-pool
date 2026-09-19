@@ -43,7 +43,17 @@ class InsnrgLight(InsnrgEntity, LightEntity):
     def __init__(self, coordinator: InsnrgCoordinator, device_id: str) -> None:
         super().__init__(coordinator, device_id)
         self._attr_name = coordinator.data[device_id]["name"]
-        self._attr_effect_list = list(coordinator.data[device_id]["options"])
+        self._cached_effects: list[str] = list(
+            coordinator.data[device_id].get("options") or []
+        )
+
+    @property
+    def effect_list(self) -> list[str]:
+        """Return the colour programs, keeping the last non-empty list."""
+        live = list(self.device.get("options") or [])
+        if live:
+            self._cached_effects = live
+        return self._cached_effects
 
     @property
     def is_on(self) -> bool | None:
@@ -55,7 +65,7 @@ class InsnrgLight(InsnrgEntity, LightEntity):
     def effect(self) -> str | None:
         """Return the active colour program."""
         mode = self.device.get("mode")
-        return mode if mode in (self._attr_effect_list or []) else None
+        return mode if mode in self.effect_list else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

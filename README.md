@@ -114,6 +114,14 @@ sensors, not the controls.
 - The thermostats expose a setpoint but no on/off — heating is gated by the Gas Heater
   switch — so they report a single `heat` mode.
 
+## Resilience
+
+The Insnrg API intermittently returns a degraded payload: blank readings
+(`""` rather than a number) and appliances missing their `options` list. Every
+reading is coerced defensively, and option lists fall back to the last
+non-empty value, so a bad poll leaves entities present and merely stale rather
+than removing or breaking them.
+
 ## Credits
 
 API shape originally mapped by [Mattat01/insnrg_chlorinator](https://github.com/Mattat01/insnrg_chlorinator)

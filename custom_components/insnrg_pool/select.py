@@ -35,7 +35,7 @@ async def async_setup_entry(
     entities: list[SelectEntity] = []
 
     for device_id, device in coordinator.data.items():
-        if device["type"] in (TYPE_PUMP_SPEED, TYPE_CHLORINATOR) and device["options"]:
+        if device["type"] in (TYPE_PUMP_SPEED, TYPE_CHLORINATOR):
             entities.append(InsnrgModeSelect(coordinator, device_id))
         elif (
             device["type"] in (TYPE_SWITCH, TYPE_LIGHT)
@@ -64,13 +64,27 @@ class InsnrgModeSelect(InsnrgEntity, SelectEntity):
     def __init__(self, coordinator: InsnrgCoordinator, device_id: str) -> None:
         super().__init__(coordinator, device_id)
         self._attr_name = coordinator.data[device_id]["name"]
-        self._attr_options = list(coordinator.data[device_id]["options"])
+        self._cached_options: list[str] = list(
+            coordinator.data[device_id].get("options") or []
+        )
+
+    @property
+    def options(self) -> list[str]:
+        """Return the selectable levels.
+
+        The API occasionally omits `options` on an otherwise healthy device,
+        so the last non-empty list is kept rather than collapsing to nothing.
+        """
+        live = list(self.device.get("options") or [])
+        if live:
+            self._cached_options = live
+        return self._cached_options
 
     @property
     def current_option(self) -> str | None:
         """Return the selected level."""
         mode = self.device.get("mode")
-        return mode if mode in self._attr_options else None
+        return mode if mode in self.options else None
 
     async def async_select_option(self, option: str) -> None:
         """Set a new level."""

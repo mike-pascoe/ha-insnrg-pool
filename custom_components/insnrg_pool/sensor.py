@@ -23,7 +23,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, as_float
 from .coordinator import InsnrgAppCoordinator
 from .entity import InsnrgAppEntity, InsnrgEntity
 
@@ -154,8 +154,7 @@ class InsnrgChemistrySensor(InsnrgEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         """Return the current reading."""
-        value = (self.device.get("thermostat") or {}).get("value")
-        return None if value is None else float(value)
+        return as_float((self.device.get("thermostat") or {}).get("value"))
 
 
 class InsnrgWaterTempSensor(InsnrgEntity, SensorEntity):
@@ -172,8 +171,7 @@ class InsnrgWaterTempSensor(InsnrgEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         """Return the water temperature."""
-        value = (self.device.get("temperature") or {}).get("value")
-        return None if value is None else float(value)
+        return as_float((self.device.get("temperature") or {}).get("value"))
 
 
 class InsnrgAppSensor(InsnrgAppEntity, SensorEntity):

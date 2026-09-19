@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final
 
 DOMAIN: Final = "insnrg_pool"
 MANUFACTURER: Final = "Insnrg"
@@ -94,3 +94,18 @@ def relay_cmd(outlet: int) -> str:
 def relay_voice_device_id(outlet: int) -> str:
     """Return the control API device id this outlet would use if exposed."""
     return "OUTLET_HUB_%d" % outlet
+
+
+def as_float(value: Any, default: float | None = None) -> float | None:
+    """Coerce an API value to float, tolerating blanks and junk.
+
+    The Insnrg API intermittently reports "" for a reading whose probe is
+    momentarily not answering. float("") raises, which is enough to stop an
+    entity being added at all, so every reading goes through here.
+    """
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
