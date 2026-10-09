@@ -25,11 +25,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the pool and spa thermostats."""
-    coordinator = hass.data[DOMAIN][entry.entry_id].control
+    runtime = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
-        InsnrgThermostat(coordinator, device_id)
+        InsnrgThermostat(runtime.control, device_id, runtime.app)
         for device_id in THERMOSTAT_TARGET_KEYS
-        if device_id in coordinator.data
+        if device_id in runtime.control.data
     )
 
 
@@ -47,10 +47,16 @@ class InsnrgThermostat(InsnrgEntity, ClimateEntity):
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_target_temperature_step = 0.5
 
-    def __init__(self, coordinator: InsnrgCoordinator, device_id: str) -> None:
+    def __init__(
+        self,
+        coordinator: InsnrgCoordinator,
+        device_id: str,
+        app_coordinator=None,
+    ) -> None:
         super().__init__(coordinator, device_id)
         self._target_key = THERMOSTAT_TARGET_KEYS[device_id]
         self._attr_name = coordinator.data[device_id]["name"]
+        self._app_coordinator = app_coordinator
 
     @property
     def _thermostat(self) -> dict[str, Any]:
@@ -68,7 +74,17 @@ class InsnrgThermostat(InsnrgEntity, ClimateEntity):
 
     @property
     def current_temperature(self) -> float | None:
-        """Return the measured water temperature."""
+        """Return the measured water temperature.
+
+        Prefers the in-line sensor from the app API. The control API reports
+        the gas heater's own probe here, which can sit degrees away from the
+        water for days at a time.
+        """
+        if self._app_coordinator is not None:
+            entry = (self._app_coordinator.data or {}).get("waterTemperature") or {}
+            water = as_float(entry.get("value"))
+            if water is not None:
+                return water
         return as_float((self.device.get("temperature") or {}).get("value"))
 
     @property

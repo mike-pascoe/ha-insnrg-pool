@@ -83,6 +83,15 @@ APP_SENSORS: tuple[InsnrgAppSensorDescription, ...] = (
         value_fn=_counter("gasHeaterHours"),
     ),
     InsnrgAppSensorDescription(
+        key="gasHeaterTemperature",
+        name="Gas heater temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=_counter("gasHeaterTemperature"),
+    ),
+    InsnrgAppSensorDescription(
         key="cell_voltage",
         name="Cell voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
@@ -126,10 +135,14 @@ async def async_setup_entry(
         if device_id in runtime.control.data:
             entities.append(InsnrgChemistrySensor(runtime.control, device_id))
 
-    if "POOL_CONTROL" in runtime.control.data:
-        entities.append(InsnrgWaterTempSensor(runtime.control, "POOL_CONTROL"))
-
     app_data = runtime.app.data or {}
+    if "waterTemperature" in app_data:
+        entities.append(InsnrgWaterTempSensor(runtime.app))
+    elif "POOL_CONTROL" in runtime.control.data:
+        # No app API: fall back to the gas heater probe, which is all the
+        # control API offers.
+        entities.append(InsnrgFallbackWaterTempSensor(runtime.control, "POOL_CONTROL"))
+
     entities.extend(
         InsnrgAppSensor(runtime.app, description)
         for description in APP_SENSORS
@@ -157,8 +170,33 @@ class InsnrgChemistrySensor(InsnrgEntity, SensorEntity):
         return as_float((self.device.get("thermostat") or {}).get("value"))
 
 
-class InsnrgWaterTempSensor(InsnrgEntity, SensorEntity):
-    """Measured water temperature."""
+class InsnrgWaterTempSensor(InsnrgAppEntity, SensorEntity):
+    """Pool water temperature, from the in-line sensor.
+
+    Keeps the unique id the control-API version used, so the entity and its
+    history survive the change of source.
+    """
+
+    _attr_name = "Water temperature"
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "POOL_CONTROL_water_temp")
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the water temperature."""
+        entry = (self.coordinator.data or {}).get("waterTemperature") or {}
+        return as_float(entry.get("value"))
+
+
+class InsnrgFallbackWaterTempSensor(InsnrgEntity, SensorEntity):
+    """Water temperature from the control API, used only without the app API.
+
+    This is the gas heater's internal probe and tracks the water poorly.
+    """
 
     _attr_name = "Water temperature"
     _attr_device_class = SensorDeviceClass.TEMPERATURE

@@ -201,9 +201,12 @@ class InsnrgAppClient:
         live = system.get("liveData")
         if isinstance(live, str) and live:
             try:
-                result["liveData"] = json.loads(live)
+                live_data = json.loads(live)
             except json.JSONDecodeError:
                 _LOGGER.debug("Could not parse liveData")
+            else:
+                result["liveData"] = live_data
+                result.update(_temperatures(live_data))
 
         return result
 
@@ -257,6 +260,34 @@ class InsnrgAppClient:
             return f"Relay hub outlet {outlet}"
         # The app stores these upper-cased; title case reads better in HA.
         return name.title() if name.isupper() else name
+
+
+def _temperatures(live: dict[str, Any]) -> dict[str, Any]:
+    """Pull the usable temperatures out of liveData.
+
+    The control API reports the *gas heater's* internal probe as the pool
+    temperature. That probe sits in the heater, not the water, and holds a
+    value for days while the pool swings several degrees -- so the in-line
+    sensor here is the one that means "pool water temperature".
+
+    `tempExp` is the expansion-bus sensor and `temp` the chlorinator's own;
+    a system has one or the other, and the unused one reads zero.
+    """
+    out: dict[str, Any] = {}
+    water = next(
+        (v for v in (live.get("tempExp"), live.get("temp"))
+         if isinstance(v, (int, float)) and v),
+        None,
+    )
+    if water is not None:
+        out["waterTemperature"] = {"value": float(water), "name": "Water temperature"}
+    gas = live.get("tempGas")
+    if isinstance(gas, (int, float)) and gas:
+        out["gasHeaterTemperature"] = {
+            "value": float(gas),
+            "name": "Gas heater temperature",
+        }
+    return out
 
 
 def _wifi_dbm(raw: float) -> float:

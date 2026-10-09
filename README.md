@@ -44,6 +44,7 @@ Everything lives under a single device named after your pool system.
 | *<appliance>* mode | `select` | `ON` / `OFF` / `TIMER` — see below |
 | pH setpoint, ORP setpoint | `number` | Targets the chlorinator doses towards |
 | pH, ORP, Water temperature | `sensor` | Live readings |
+| Gas heater temperature | `sensor` | The heater's own probe, diagnostic |
 | Cell life, Gas heater hours | `sensor` | Service-life counters, with `service_life_hours` attribute |
 | pH / ORP probe life, Acid squeeze tube life | `sensor` | Diagnostic |
 | Cell voltage, Cell current, WiFi signal | `sensor` | Diagnostic (WiFi disabled by default) |
@@ -80,7 +81,8 @@ mode in its `mode` attribute. Use the `select` when the distinction matters.
 ## Configuration
 
 The polling interval is configurable under the integration's **Configure** button
-(default 5 minutes). Maintenance counters poll every 30 minutes regardless — they
+(default 5 minutes). The app-API feed — water temperature and maintenance
+counters — polls every 15 minutes regardless — they
 move in hours, not minutes.
 
 This is a cloud-polled integration: state changes made at the pool or in the Insnrg
@@ -113,6 +115,20 @@ sensors, not the controls.
   `valueMax` for pH tracks the current reading instead of a real limit.
 - The thermostats expose a setpoint but no on/off — heating is gated by the Gas Heater
   switch — so they report a single `heat` mode.
+
+## Which temperature is the water temperature
+
+The control API reports the **gas heater's internal probe** as the pool
+temperature. That probe sits in the heater rather than the water: on a live
+system it held 34.5 °C for three days while the pool itself swung between 15
+and 24.5 °C.
+
+So `Water temperature` and both thermostats read the in-line sensor from the
+app API (`liveData.tempExp`, falling back to `temp`) instead. The heater probe
+is still exposed, as a separate diagnostic `Gas heater temperature`.
+
+If the app API is unavailable, `Water temperature` falls back to the control
+API's value — the heater probe — because that is then the only figure on offer.
 
 ## Resilience
 

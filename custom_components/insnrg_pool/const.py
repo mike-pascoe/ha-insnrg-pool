@@ -14,8 +14,9 @@ CMD_URL: Final = f"{API_BASE}/cmd"
 CONF_SCAN_INTERVAL_MINUTES: Final = "scan_interval_minutes"
 DEFAULT_SCAN_INTERVAL_MINUTES: Final = 5
 
-# Maintenance counters move in hours, not minutes.
-APP_SCAN_INTERVAL_MINUTES: Final = 30
+# Mostly maintenance counters that move in hours, but this feed also carries
+# the water temperature, so it is not polled as lazily as those alone allow.
+APP_SCAN_INTERVAL_MINUTES: Final = 15
 
 # Seconds to wait after a write before re-polling. The cloud needs a moment to
 # round-trip the command to the pool controller before `getall` reflects it.
